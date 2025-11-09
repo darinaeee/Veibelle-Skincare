@@ -19,7 +19,10 @@ app = FastAPI(title="VeiBelle Skincare Recommender API")
 # --- Allow CORS for frontend (from .env) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],
+    allow_origins=[
+        "http://localhost:5173",  # for local testing
+        "https://veibelle-skincare.vercel.app",  # deployed frontend
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
