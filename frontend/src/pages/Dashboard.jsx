@@ -31,8 +31,8 @@ const Dashboard = () => {
         
         // src/pages/Dashboard.jsx
 const API_BASE = "https://veibelle-backend.up.railway.app";
-
-const resp = await fetch(`${API_BASE}/recommend?${params.toString()}`);
+        const resp = await fetch(`http://127.0.0.1:8000/recommend?${params.toString()}`);
+        if (!resp.ok) throw new Error(await resp.text());
 
         const data = await resp.json();
         setRecs(Array.isArray(data.results) ? data.results : []);
