@@ -16,15 +16,15 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 app = FastAPI(title="VeiBelle Skincare Recommender API")
 
-# --- Allow CORS for frontend (from .env) ---
+# --- Allow CORS for frontend ---
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://veibelle-skincare.vercel.app",
-        "https://veibelle-skincare-darlinas-projects.vercel.app",
-        "https://veibelle-skincare-git-main-darlinas-projects.vercel.app",
-        "https://veibelle-skincare-kyw07py8i-darlinas-projects.vercel.app",
+        "http://localhost:5174",   # Add your React dev server
+        "http://127.0.0.1:5173",   # Optional
+        "http://127.0.0.1:5174",   # Optional
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -90,6 +90,7 @@ CONCERN_SYNONYMS = {
     "puffiness": ["puff", "eye bag", "de-puff", "caffeine"],
     "dark circles": ["dark circle", "eye bag"],
     "uv protection": ["spf", "sunscreen", "broad spectrum", "uva", "uvb"],
+    "dullness": ["dull", "lack of radiance", "brightening", "radiance"],
 }
 
 def expand_concerns(concern_list):
@@ -105,6 +106,14 @@ def expand_concerns(concern_list):
 # ================================================================
 # 🔍 Core Recommendation Logic
 # ================================================================
+SKIN_TYPE_MAPPING = {
+    "Dry Skin": "Dry",
+    "Oily Skin": "Oily",
+    "Normal Skin": "Normal",
+    "Combination Skin": "Combination",
+    "Sensitive Skin": "Sensitive",
+}
+
 def get_recommendations(
     skin_type=None,
     product_type=None,
@@ -118,12 +127,18 @@ def get_recommendations(
 
     df = products_df.copy()
 
-    if skin_type and skin_type in df.columns:
-        df = df[df[skin_type] == 1]
+    # --- Skin type filter ---
+    if skin_type:
+        col_name = SKIN_TYPE_MAPPING.get(skin_type)
+        if col_name and col_name in df.columns:
+            df = df[df[col_name] == 1]
 
+    # --- Product type filter ---
     if product_type:
-        df = df[df["Label"].str.contains(product_type, case=False, na=False)]
+        types = [t.strip() for t in product_type.replace("/", ",").split(",")]
+        df = df[df["Label"].str.lower().apply(lambda x: any(t.lower() in x for t in types))]
 
+    # --- Allergens filter ---
     if allergens_list and product_allergens is not None:
         allergens_lower = [a.lower() for a in allergens_list]
         bad_products = product_allergens[
@@ -131,7 +146,8 @@ def get_recommendations(
         ]["product_id"].unique()
         df = df[~df.index.isin(bad_products)]
 
-    if pregnancy_safe and pregnancy_safe.lower() == "yes":
+    # --- Pregnancy-safe filter ---
+    if pregnancy_safe and pregnancy_safe.lower() == "yes" and ingredients_df is not None:
         unsafe_ing = ingredients_df[
             ingredients_df["who_should_avoid"].str.contains("Pregnancy", case=False, na=False)
         ]["name"].str.lower().tolist()
@@ -143,6 +159,7 @@ def get_recommendations(
     if df.empty:
         return []
 
+    # --- TF-IDF similarity ---
     subset_indices = df.index.tolist()
     subset_matrix = full_tfidf[subset_indices]
 
