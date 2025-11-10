@@ -28,9 +28,11 @@ const Dashboard = () => {
         if (quizData.concerns?.length) params.append("concerns", quizData.concerns.join(","));
         if (quizData.allergens?.length) params.append("allergens_list", quizData.allergens.join(","));
         if (quizData.pregnancySafe) params.append("pregnancy_safe", quizData.pregnancySafe);
+        
+        // src/pages/Dashboard.jsx
+const API_BASE = "https://veibelle-backend.up.railway.app";
 
-        const resp = await fetch(`http://127.0.0.1:8000/recommend?${params.toString()}`);
-        if (!resp.ok) throw new Error(await resp.text());
+const resp = await fetch(`${API_BASE}/recommend?${params.toString()}`);
 
         const data = await resp.json();
         setRecs(Array.isArray(data.results) ? data.results : []);
